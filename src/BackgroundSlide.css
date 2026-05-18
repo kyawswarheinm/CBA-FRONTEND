@@ -1,0 +1,25 @@
+.bg-slide {
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.bg-slide__tile {
+  position: absolute;
+  will-change: left, top;
+}
+
+.bg-slide__image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  user-select: none;
+}
+
+.bg-slide__annotations {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+}

@@ -1,0 +1,74 @@
+.home-bg-annotations {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.home-bg-annotations__frame {
+  position: absolute;
+  inset: 0;
+  will-change: transform;
+}
+
+.home-bg-annotations__canvas {
+  position: absolute;
+}
+
+.home-bg-annotation {
+  position: absolute;
+  border: 3px solid;
+  box-sizing: border-box;
+}
+
+.home-bg-annotation.no-interaction {
+  border-color: #ff3b30;
+  background: rgba(255, 59, 48, 0.08);
+}
+
+.home-bg-annotation.touching {
+  border-color: #30d158;
+  background: rgba(48, 209, 88, 0.08);
+}
+
+.home-bg-annotation.holding {
+  border-color: #0a84ff;
+  background: rgba(10, 132, 255, 0.08);
+}
+
+.home-bg-annotation.removed {
+  border-color: #ff9f0a;
+  background: rgba(255, 159, 10, 0.08);
+}
+
+.home-bg-annotation__label {
+  position: absolute;
+  top: 0;
+  left: 0;
+  padding: 0;
+  background: none;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.1;
+  white-space: nowrap;
+  text-transform: none;
+  transform: translate(-3px, calc(-100% - 6px));
+  text-shadow: 0 1px 2px rgba(0,0,0,0.7);
+}
+
+.home-bg-annotation.no-interaction .home-bg-annotation__label {
+  color: #ff3b30;
+}
+
+.home-bg-annotation.touching .home-bg-annotation__label {
+  color: #30d158;
+}
+
+.home-bg-annotation.holding .home-bg-annotation__label {
+  color: #0a84ff;
+}
+
+.home-bg-annotation.removed .home-bg-annotation__label {
+  color: #ff9f0a;
+}
