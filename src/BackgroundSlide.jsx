@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import manualAnnotationsCsvUrl from "../../manual_annotations/background_slide_only_24s_manual_annotations.csv?url";
+import manualAnnotationsCsvUrl from "./assets/background_slide_only_24s_manual_annotations.csv?url";
 import tiledBackground from "./assets/background_raw.png";
 import "./BackgroundSlide.css";
 import "./HomeBackgroundAnnotations.css";

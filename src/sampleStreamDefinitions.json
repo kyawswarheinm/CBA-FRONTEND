@@ -1,0 +1,50 @@
+[
+  {
+    "stream_id": "entrance",
+    "camera_id": 1,
+    "name": "Example Video 1",
+    "source_type": "file",
+    "playback_mode": "replay",
+    "frontend_video_path": "/sample-videos/video1.mp4",
+    "fixed_size": { "width": 720, "height": 1280 },
+    "shelf_zone": [
+      { "x": 0.0, "y": 0.0 },
+      { "x": 0.5, "y": 0.3333 },
+      { "x": 0.5, "y": 0.5 },
+      { "x": 0.0, "y": 1.45 }
+    ],
+    "is_custom": false
+  },
+  {
+    "stream_id": "aisle-a",
+    "camera_id": 2,
+    "name": "Example Video 2",
+    "source_type": "file",
+    "playback_mode": "replay",
+    "frontend_video_path": "/sample-videos/video2.mp4",
+    "fixed_size": { "width": 720, "height": 1280 },
+    "shelf_zone": [
+      { "x": 1.0, "y": -0.5 },
+      { "x": 0.4, "y": 0.25 },
+      { "x": 0.4, "y": 0.45 },
+      { "x": 1.0, "y": 1.55 }
+    ],
+    "is_custom": false
+  },
+  {
+    "stream_id": "shelf-hand",
+    "camera_id": 3,
+    "name": "Example Video 3",
+    "source_type": "file",
+    "playback_mode": "replay",
+    "frontend_video_path": "/sample-videos/video3.mp4",
+    "fixed_size": { "width": 720, "height": 1280 },
+    "shelf_zone": [
+      { "x": 1.0, "y": -0.5 },
+      { "x": 0.4, "y": 0.25 },
+      { "x": 0.4, "y": 0.45 },
+      { "x": 1.0, "y": 1.55 }
+    ],
+    "is_custom": false
+  }
+]

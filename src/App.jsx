@@ -3,38 +3,11 @@ import exampleShelfImage from "./assets/example1-shelf.png";
 import BackgroundSlide from "./BackgroundSlide";
 import example1Layout from "./productLayouts/example1Layout";
 import example2Layout from "./productLayouts/example2Layout";
+import sampleStreamDefinitions from "./sampleStreamDefinitions.json";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000";
 
-const FALLBACK_STREAMS = [
-  {
-    stream_id: "entrance",
-    camera_id: 1,
-    name: "Training Video Sample",
-    source_type: "file",
-    fixed_size: { width: 720, height: 1280 },
-    shelf_zone: [],
-    is_custom: false,
-  },
-  {
-    stream_id: "aisle-a",
-    camera_id: 2,
-    name: "Validation Video Sample",
-    source_type: "file",
-    fixed_size: { width: 720, height: 1280 },
-    shelf_zone: [],
-    is_custom: false,
-  },
-  {
-    stream_id: "shelf-hand",
-    camera_id: 3,
-    name: "Test Video Sample",
-    source_type: "file",
-    fixed_size: { width: 720, height: 1280 },
-    shelf_zone: [],
-    is_custom: false,
-  },
-];
+const FALLBACK_STREAMS = sampleStreamDefinitions.map((stream) => ({ ...stream }));
 
 const VIEW_OPTIONS = [
   { value: "live", label: "live view" },
@@ -66,6 +39,8 @@ const DEFAULT_SHELF_ZONE_DRAFT = [
   { x: 0.82, y: 0.88 },
   { x: 0.18, y: 0.9 },
 ];
+const SHELF_ZONE_COORDINATE_MIN = -2;
+const SHELF_ZONE_COORDINATE_MAX = 2;
 const SHELF_ZONE_HANDLE_LABELS = [2, 1, 4, 3];
 const SHELF_ZONE_REFERENCE_ITEMS = [
   { label: 1, title: "Top right", description: "Place on the top-right corner of the shelf." },
@@ -351,8 +326,8 @@ function normalizeShelfZoneDraft(points) {
   }
 
   return points.map((point) => ({
-    x: clamp(Number(point?.x ?? 0), 0, 1),
-    y: clamp(Number(point?.y ?? 0), 0, 1),
+    x: clamp(Number(point?.x ?? 0), SHELF_ZONE_COORDINATE_MIN, SHELF_ZONE_COORDINATE_MAX),
+    y: clamp(Number(point?.y ?? 0), SHELF_ZONE_COORDINATE_MIN, SHELF_ZONE_COORDINATE_MAX),
   }));
 }
 
@@ -372,6 +347,67 @@ function shelfZonePointsAreEqual(leftPoints, rightPoints) {
 
 function streamHasShelfZone(stream) {
   return Array.isArray(stream?.shelf_zone) && stream.shelf_zone.length === 4;
+}
+
+function mergeStreamsWithLocalDefinitions(streams, localDefinitions) {
+  const nextStreams = Array.isArray(streams) ? streams : [];
+  const definitions = Array.isArray(localDefinitions) ? localDefinitions : [];
+  const definitionMap = new Map(definitions.map((stream) => [stream.stream_id, stream]));
+  const merged = nextStreams.map((stream) => {
+    const definition = definitionMap.get(stream.stream_id);
+    return definition ? { ...stream, ...definition, is_custom: Boolean(stream?.is_custom) } : stream;
+  });
+
+  for (const definition of definitions) {
+    if (!merged.some((stream) => stream.stream_id === definition.stream_id)) {
+      merged.push({ ...definition });
+    }
+  }
+
+  return merged;
+}
+
+function pointInNormalizedPolygon(point, polygon) {
+  if (!Array.isArray(polygon) || polygon.length < 3) {
+    return true;
+  }
+
+  let inside = false;
+  for (let index = 0, previousIndex = polygon.length - 1; index < polygon.length; previousIndex = index, index += 1) {
+    const currentPoint = polygon[index];
+    const previousPoint = polygon[previousIndex];
+    const currentX = Number(currentPoint?.x ?? 0);
+    const currentY = Number(currentPoint?.y ?? 0);
+    const previousX = Number(previousPoint?.x ?? 0);
+    const previousY = Number(previousPoint?.y ?? 0);
+    const intersects =
+      currentY > point.y !== previousY > point.y &&
+      point.x <
+        ((previousX - currentX) * (point.y - currentY)) / ((previousY - currentY) || 1e-9) + currentX;
+    if (intersects) {
+      inside = !inside;
+    }
+  }
+  return inside;
+}
+
+function filterPointsToShelfZone(points, shelfZone) {
+  if (!Array.isArray(points) || !points.length) {
+    return [];
+  }
+  if (!Array.isArray(shelfZone) || shelfZone.length !== 4) {
+    return points;
+  }
+
+  return points.filter((point) =>
+    pointInNormalizedPolygon(
+      {
+        x: Number(point?.x ?? 0),
+        y: Number(point?.y ?? 0),
+      },
+      shelfZone,
+    ),
+  );
 }
 
 function buildHistoricalEventPoints(heatmapData, shelfAnalysis) {
@@ -529,6 +565,116 @@ function buildProductInsights(productStates) {
 
 function metricForCamera(metrics, cameraId) {
   return metrics.find((item) => item.camera_id === cameraId) ?? null;
+}
+
+function createHeatmapGrid(rows, cols) {
+  return Array.from({ length: rows }, () => Array.from({ length: cols }, () => 0));
+}
+
+function addReplayHeatmapImpulse(grid, xIndex, yIndex) {
+  for (let dx = -1; dx <= 1; dx += 1) {
+    for (let dy = -1; dy <= 1; dy += 1) {
+      const nextX = clamp(xIndex + dx, 0, grid[0].length - 1);
+      const nextY = clamp(yIndex + dy, 0, grid.length - 1);
+      const weight = dx === 0 && dy === 0 ? 1 : 0.35;
+      grid[nextY][nextX] += weight;
+    }
+  }
+}
+
+function normalizeHeatmapGrid(grid) {
+  let peak = 0;
+  for (const row of grid) {
+    for (const value of row) {
+      if (value > peak) {
+        peak = value;
+      }
+    }
+  }
+
+  if (peak <= 0) {
+    return grid.map((row) => row.map(() => 0));
+  }
+
+  return grid.map((row) => row.map((value) => Number((value / peak).toFixed(4))));
+}
+
+function buildReplayHeatmapData(historyEvents = []) {
+  const rows = 18;
+  const cols = 32;
+  const touchingGrid = createHeatmapGrid(rows, cols);
+  const holdingGrid = createHeatmapGrid(rows, cols);
+  const removedGrid = createHeatmapGrid(rows, cols);
+
+  for (const event of historyEvents) {
+    const xIndex = clamp(Number(event?.heatmap_x ?? 0), 0, cols - 1);
+    const yIndex = clamp(Number(event?.heatmap_y ?? 0), 0, rows - 1);
+    addReplayHeatmapImpulse(touchingGrid, xIndex, yIndex);
+    if (event?.event_type === "holding" || event?.event_type === "product_remove") {
+      addReplayHeatmapImpulse(holdingGrid, xIndex, yIndex);
+    }
+    if (event?.event_type === "product_remove") {
+      addReplayHeatmapImpulse(removedGrid, xIndex, yIndex);
+    }
+  }
+
+  return {
+    shape: { rows, cols },
+    touching_values: normalizeHeatmapGrid(touchingGrid),
+    holding_values: normalizeHeatmapGrid(holdingGrid),
+    removed_values: normalizeHeatmapGrid(removedGrid),
+  };
+}
+
+function summarizeInteractionPoints(points = []) {
+  const rawCounts = {
+    touching: 0,
+    holding: 0,
+    removed: 0,
+  };
+
+  for (const point of points) {
+    if (point?.kind === "touching") {
+      rawCounts.touching += 1;
+    } else if (point?.kind === "holding") {
+      rawCounts.holding += 1;
+    } else if (point?.kind === "product_remove") {
+      rawCounts.removed += 1;
+    }
+  }
+
+  return {
+    touching: rawCounts.touching + rawCounts.holding + rawCounts.removed,
+    holding: rawCounts.holding + rawCounts.removed,
+    removed: rawCounts.removed,
+  };
+}
+
+function buildReplayMetric(stream, replayFrame, replayStream, persistentPoints = []) {
+  if (!stream || !replayFrame) {
+    return null;
+  }
+
+  const metrics = replayFrame.metrics ?? {};
+  const interactionSummary = summarizeInteractionPoints(persistentPoints);
+  return {
+    camera_id: stream.camera_id,
+    stream_id: stream.stream_id,
+    status: "connected",
+    last_error: "",
+    live_fps: Number(replayStream?.frame_rate ?? replayFrame.analysis_fps ?? 0),
+    current_people: Number(metrics.current_people ?? 0),
+    touching_events: interactionSummary.touching,
+    holding_events: interactionSummary.holding,
+    product_remove_events: interactionSummary.removed,
+    no_interaction_events: Number(metrics.no_interaction_events ?? 0),
+    behavior_events: interactionSummary.touching,
+    person_boxes: replayFrame.person_boxes ?? [],
+    behavior_boxes: replayFrame.behavior_boxes ?? [],
+    camera_metadata: {
+      last_frame_at: `Sample ${Number(replayFrame.time_s ?? 0).toFixed(1)}s`,
+    },
+  };
 }
 
 function sortProductsForDisplay(productStates) {
@@ -1301,7 +1447,7 @@ function ProductPointsCanvas({ points }) {
   return <canvas aria-hidden="true" className="product-points-canvas" ref={canvasRef} />;
 }
 
-function ShelfZoneEditor({ points, disabled, onChange }) {
+function ShelfZoneEditor({ points, disabled, onChange, showHandles = true }) {
   const editorRef = useRef(null);
   const activeHandleIndexRef = useRef(-1);
 
@@ -1356,24 +1502,26 @@ function ShelfZoneEditor({ points, disabled, onChange }) {
         viewBox="0 0 100 100"
       >
         <polygon className="shelf-zone-editor__fill" points={polygonPath} />
-        <polyline className="shelf-zone-editor__outline" points={polygonPath} />
+        <polygon className="shelf-zone-editor__outline" points={polygonPath} />
       </svg>
 
-      {normalizedPoints.map((point, index) => (
-        <button
-          aria-label={`Shelf zone point ${SHELF_ZONE_HANDLE_LABELS[index] ?? index + 1}`}
-          className="shelf-zone-editor__handle"
-          key={`zone-point-${SHELF_ZONE_HANDLE_LABELS[index] ?? index + 1}`}
-          style={{ left: `${point.x * 100}%`, top: `${point.y * 100}%` }}
-          type="button"
-          onPointerDown={(event) => handlePointerDown(index, event)}
-          onPointerMove={(event) => handlePointerMove(index, event)}
-          onPointerUp={(event) => handlePointerUp(index, event)}
-          onPointerCancel={(event) => handlePointerUp(index, event)}
-        >
-          <span>{SHELF_ZONE_HANDLE_LABELS[index] ?? index + 1}</span>
-        </button>
-      ))}
+      {showHandles
+        ? normalizedPoints.map((point, index) => (
+            <button
+              aria-label={`Shelf zone point ${SHELF_ZONE_HANDLE_LABELS[index] ?? index + 1}`}
+              className="shelf-zone-editor__handle"
+              key={`zone-point-${SHELF_ZONE_HANDLE_LABELS[index] ?? index + 1}`}
+              style={{ left: `${point.x * 100}%`, top: `${point.y * 100}%` }}
+              type="button"
+              onPointerDown={(event) => handlePointerDown(index, event)}
+              onPointerMove={(event) => handlePointerMove(index, event)}
+              onPointerUp={(event) => handlePointerUp(index, event)}
+              onPointerCancel={(event) => handlePointerUp(index, event)}
+            >
+              <span>{SHELF_ZONE_HANDLE_LABELS[index] ?? index + 1}</span>
+            </button>
+          ))
+        : null}
     </div>
   );
 }
@@ -1533,6 +1681,55 @@ function HeatmapGrid({ heatmapData, filterMode }) {
   );
 }
 
+function DetectionOverlay({ personBoxes = [], behaviorBoxes = [], persistentPoints = [], frameSize }) {
+  const frameWidth = Math.max(Number(frameSize?.width ?? 0), 1);
+  const frameHeight = Math.max(Number(frameSize?.height ?? 0), 1);
+  const allBoxes = [
+    ...personBoxes.map((box, index) => ({ ...box, overlayId: `person-${index}` })),
+    ...behaviorBoxes.map((box, index) => ({ ...box, overlayId: `behavior-${index}` })),
+  ];
+
+  if (!allBoxes.length && !persistentPoints.length) {
+    return null;
+  }
+
+  return (
+    <div className="detection-overlay" aria-hidden="true">
+      {allBoxes.map((box) => {
+        const [x1, y1, x2, y2] = box.bbox ?? [0, 0, 0, 0];
+        const kind = box.kind ?? "person";
+        const width = Math.max(x2 - x1, 0);
+        const height = Math.max(y2 - y1, 0);
+
+        return (
+          <div
+            className={`detection-box detection-box--${kind}`}
+            key={box.overlayId}
+            style={{
+              left: `${(x1 / frameWidth) * 100}%`,
+              top: `${(y1 / frameHeight) * 100}%`,
+              width: `${(width / frameWidth) * 100}%`,
+              height: `${(height / frameHeight) * 100}%`,
+            }}
+          >
+            <span className="detection-box__label">{box.label ?? kind}</span>
+          </div>
+        );
+      })}
+      {persistentPoints.map((point) => (
+        <span
+          className={`interaction-point interaction-point--${point.kind ?? "touching"}`}
+          key={point.id}
+          style={{
+            left: `${(Number(point.x ?? 0) * 100).toFixed(3)}%`,
+            top: `${(Number(point.y ?? 0) * 100).toFixed(3)}%`,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
 function ProductBoard({
   backgroundImage,
   boardClassName,
@@ -1604,6 +1801,10 @@ export default function App() {
   const [streams, setStreams] = useState([]);
   const [selectedStreamId, setSelectedStreamId] = useState("");
   const [selectedViewMode, setSelectedViewMode] = useState("live");
+  const [sampleReplayData, setSampleReplayData] = useState(null);
+  const [sampleReplayError, setSampleReplayError] = useState("");
+  const [sampleReplayStepIndex, setSampleReplayStepIndex] = useState(0);
+  const [sampleVideoStatus, setSampleVideoStatus] = useState("idle");
   const [heatmapFilter, setHeatmapFilter] = useState("all");
   const [metrics, setMetrics] = useState([]);
   const [heatmapData, setHeatmapData] = useState(null);
@@ -1629,6 +1830,7 @@ export default function App() {
   const [isSavingShelfZone, setIsSavingShelfZone] = useState(false);
   const [, startPointToggleTransition] = useTransition();
   const boardRef = useRef(null);
+  const sampleVideoRef = useRef(null);
   const onActionPage = currentPage === "action";
 
   useEffect(() => {
@@ -1656,6 +1858,34 @@ export default function App() {
     };
   }, [onActionPage]);
 
+  useEffect(() => {
+    let ignore = false;
+
+    async function loadReplay() {
+      try {
+        const response = await fetch("/sample-analysis/sample_replay_data.json");
+        if (!response.ok) {
+          throw new Error("Could not load recorded sample replay data.");
+        }
+        const payload = await response.json();
+        if (!ignore) {
+          setSampleReplayData(payload ?? null);
+          setSampleReplayError("");
+        }
+      } catch (error) {
+        if (!ignore) {
+          setSampleReplayData(null);
+          setSampleReplayError(error.message || "Could not load recorded sample replay data.");
+        }
+      }
+    }
+
+    loadReplay();
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
   async function loadStreams(preferredStreamId = "") {
     try {
       const response = await fetch(`${API_BASE_URL}/camera-streams`);
@@ -1664,7 +1894,9 @@ export default function App() {
       }
 
       const payload = await response.json();
-      const nextStreams = payload?.streams?.length ? payload.streams : FALLBACK_STREAMS;
+      const nextStreams = payload?.streams?.length
+        ? mergeStreamsWithLocalDefinitions(payload.streams, FALLBACK_STREAMS)
+        : FALLBACK_STREAMS;
       setStreams(nextStreams);
       setSelectedStreamId((current) => {
         const nextSelectedId = preferredStreamId || current;
@@ -1708,6 +1940,12 @@ export default function App() {
   const isUploadStreamOptionSelected = selectedStreamId === UPLOAD_STREAM_OPTION_VALUE;
   const selectedStreamZoneSignature = JSON.stringify(selectedStream?.shelf_zone ?? []);
   const selectedStreamHasShelfZone = streamHasShelfZone(selectedStream);
+  const selectedReplayStream = sampleReplayData?.streams?.[selectedStream?.stream_id] ?? null;
+  const usesRecordedSampleReplay =
+    !isUploadStreamOptionSelected &&
+    selectedStream?.playback_mode === "replay" &&
+    Boolean(selectedStream?.frontend_video_path) &&
+    Boolean(selectedReplayStream);
   const liveViewerAspectStyle =
     selectedStream?.fixed_size?.width && selectedStream?.fixed_size?.height
       ? {
@@ -1726,6 +1964,97 @@ export default function App() {
     setShelfZoneStatus("");
     setShelfZoneError("");
   }, [selectedStream?.stream_id, selectedStreamZoneSignature]);
+
+  useEffect(() => {
+    if (!usesRecordedSampleReplay) {
+      setSampleReplayStepIndex(0);
+      setSampleVideoStatus("idle");
+      return;
+    }
+
+    setSampleReplayStepIndex(0);
+    setSampleVideoStatus("loading");
+  }, [selectedStream?.stream_id, usesRecordedSampleReplay]);
+
+  useEffect(() => {
+    if (!usesRecordedSampleReplay || selectedViewMode !== "live") {
+      return undefined;
+    }
+
+    const videoNode = sampleVideoRef.current;
+    if (!videoNode) {
+      return undefined;
+    }
+
+    const handleLoadedData = () => setSampleVideoStatus("ready");
+    const handlePlaying = () => setSampleVideoStatus("playing");
+    const handleWaiting = () => setSampleVideoStatus("buffering");
+    const handleError = () => setSampleVideoStatus("error");
+
+    videoNode.load();
+    videoNode.play().catch(() => {});
+    videoNode.addEventListener("loadeddata", handleLoadedData);
+    videoNode.addEventListener("playing", handlePlaying);
+    videoNode.addEventListener("waiting", handleWaiting);
+    videoNode.addEventListener("stalled", handleWaiting);
+    videoNode.addEventListener("error", handleError);
+
+    return () => {
+      videoNode.removeEventListener("loadeddata", handleLoadedData);
+      videoNode.removeEventListener("playing", handlePlaying);
+      videoNode.removeEventListener("waiting", handleWaiting);
+      videoNode.removeEventListener("stalled", handleWaiting);
+      videoNode.removeEventListener("error", handleError);
+    };
+  }, [selectedStream?.frontend_video_path, selectedStream?.stream_id, usesRecordedSampleReplay]);
+
+  useEffect(() => {
+    if (!onActionPage || selectedViewMode !== "live" || !usesRecordedSampleReplay || !selectedReplayStream) {
+      return undefined;
+    }
+
+    const videoNode = sampleVideoRef.current;
+    if (!videoNode) {
+      return undefined;
+    }
+
+    let cancelled = false;
+    let frameCallbackId = 0;
+    let fallbackIntervalId = 0;
+    const frameRate = Math.max(Number(selectedReplayStream.frame_rate ?? 30), 1);
+    const replayFrameCount = selectedReplayStream.frames?.length ?? 0;
+
+    const updateReplayCursor = () => {
+      if (cancelled || replayFrameCount <= 0) {
+        return;
+      }
+      const playbackFrame = Math.max(0, Math.floor(videoNode.currentTime * frameRate));
+      const nextIndex = clamp(playbackFrame, 0, replayFrameCount - 1);
+      setSampleReplayStepIndex((current) => (current === nextIndex ? current : nextIndex));
+    };
+
+    const handleFrame = () => {
+      updateReplayCursor();
+      if (!cancelled && typeof videoNode.requestVideoFrameCallback === "function") {
+        frameCallbackId = videoNode.requestVideoFrameCallback(handleFrame);
+      }
+    };
+
+    updateReplayCursor();
+    if (typeof videoNode.requestVideoFrameCallback === "function") {
+      frameCallbackId = videoNode.requestVideoFrameCallback(handleFrame);
+    } else {
+      fallbackIntervalId = window.setInterval(updateReplayCursor, 100);
+    }
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(fallbackIntervalId);
+      if (typeof videoNode.cancelVideoFrameCallback === "function" && frameCallbackId) {
+        videoNode.cancelVideoFrameCallback(frameCallbackId);
+      }
+    };
+  }, [onActionPage, selectedReplayStream, selectedViewMode, usesRecordedSampleReplay]);
 
   useEffect(() => {
     if (!isUploadStreamOptionSelected) {
@@ -1760,7 +2089,7 @@ export default function App() {
   }, [isUploadModalOpen]);
 
   useEffect(() => {
-    if (!onActionPage || !selectedStream?.camera_id || isUploadStreamOptionSelected) {
+    if (!onActionPage || !selectedStream?.camera_id || isUploadStreamOptionSelected || usesRecordedSampleReplay) {
       return undefined;
     }
 
@@ -1817,16 +2146,59 @@ export default function App() {
       ignore = true;
       window.clearInterval(intervalId);
     };
-  }, [onActionPage, selectedStream?.camera_id, streams, isUploadStreamOptionSelected]);
+  }, [onActionPage, selectedStream?.camera_id, streams, isUploadStreamOptionSelected, usesRecordedSampleReplay]);
 
+  const currentReplayFrame =
+    usesRecordedSampleReplay && selectedReplayStream?.frames?.length
+      ? selectedReplayStream.frames[clamp(sampleReplayStepIndex, 0, selectedReplayStream.frames.length - 1)]
+      : null;
+  const replayVisibleHistoryEvents = useMemo(() => {
+    if (!usesRecordedSampleReplay || !currentReplayFrame || !selectedReplayStream) {
+      return [];
+    }
+
+    const currentFrameIndex = Number(currentReplayFrame.frame_index ?? 0);
+    return (selectedReplayStream.history_events ?? []).filter(
+      (event) => Number(event?.frame_index ?? 0) <= currentFrameIndex,
+    );
+  }, [currentReplayFrame, selectedReplayStream, usesRecordedSampleReplay]);
+  const currentPersistentPoints = useMemo(
+    () =>
+      usesRecordedSampleReplay
+        ? filterPointsToShelfZone(
+            currentReplayFrame?.replay_points ?? currentReplayFrame?.persistent_points ?? [],
+            selectedStream?.shelf_zone,
+          )
+        : [],
+    [currentReplayFrame, selectedStream?.shelf_zone, usesRecordedSampleReplay],
+  );
+  const replayMetric = useMemo(
+    () => buildReplayMetric(selectedStream, currentReplayFrame, selectedReplayStream, currentPersistentPoints),
+    [currentPersistentPoints, currentReplayFrame, selectedReplayStream, selectedStream],
+  );
+  const effectiveHeatmapData = usesRecordedSampleReplay
+    ? buildReplayHeatmapData(replayVisibleHistoryEvents)
+    : heatmapData;
+  const effectiveShelfAnalysis = usesRecordedSampleReplay
+    ? {
+        history_event_count: replayVisibleHistoryEvents.length,
+        history_limit: selectedReplayStream?.history_limit ?? 0,
+      }
+    : shelfAnalysis;
   const currentMetric = isUploadStreamOptionSelected
     ? null
-    : metricForCamera(metrics, selectedStream?.camera_id);
+    : usesRecordedSampleReplay
+      ? replayMetric
+      : metricForCamera(metrics, selectedStream?.camera_id);
+  const currentPersonBoxes = currentMetric?.person_boxes ?? [];
+  const currentBehaviorBoxes = currentMetric?.behavior_boxes ?? [];
   const historicalEventPoints = useMemo(
-    () => buildHistoricalEventPoints(heatmapData, shelfAnalysis),
-    [heatmapData, shelfAnalysis],
+    () =>
+      usesRecordedSampleReplay ? [] : buildHistoricalEventPoints(effectiveHeatmapData, effectiveShelfAnalysis),
+    [effectiveHeatmapData, effectiveShelfAnalysis, usesRecordedSampleReplay],
   );
-  const deferredHistoricalEventPoints = useDeferredValue(historicalEventPoints);
+  const boardEventPoints = usesRecordedSampleReplay ? currentPersistentPoints : historicalEventPoints;
+  const deferredBoardEventPoints = useDeferredValue(boardEventPoints);
   const activeProductLayout =
     productLayoutMode === "example2"
       ? example2Layout
@@ -1834,8 +2206,8 @@ export default function App() {
         ? customProducts
         : example1Layout;
   const productStates = useMemo(
-    () => buildProductStates(activeProductLayout, historicalEventPoints),
-    [activeProductLayout, historicalEventPoints],
+    () => buildProductStates(activeProductLayout, boardEventPoints),
+    [activeProductLayout, boardEventPoints],
   );
   const productInsights = useMemo(() => buildProductInsights(productStates), [productStates]);
   const sortedProducts = useMemo(() => sortProductsForDisplay(productStates), [productStates]);
@@ -1858,9 +2230,22 @@ export default function App() {
     ? "Upload a video first, then configure the shelf trapezium to begin custom analysis."
     : selectedStream?.is_custom
     ? selectedStreamHasShelfZone
-      ? `Using ${formatNumber(shelfAnalysis?.history_event_count ?? 0)} stored interaction events from your uploaded video.`
+      ? `Using ${formatNumber(effectiveShelfAnalysis?.history_event_count ?? 0)} stored interaction events from your uploaded video.`
       : "Save the shelf trapezium on your uploaded video first to start generating interaction history."
-    : `Using ${formatNumber(shelfAnalysis?.history_event_count ?? 0)} stored interaction events combined from all example videos, with a rolling cap of ${formatNumber(shelfAnalysis?.history_limit ?? 0)} per stream.`;
+    : usesRecordedSampleReplay
+      ? `Showing ${formatNumber(currentPersistentPoints.length)} persistent interaction points and ${formatNumber(replayVisibleHistoryEvents.length)} recorded interactions so far for ${selectedStream?.name ?? "the selected sample"}.`
+      : `Using ${formatNumber(effectiveShelfAnalysis?.history_event_count ?? 0)} recorded interaction events combined from all example videos, with a rolling cap of ${formatNumber(effectiveShelfAnalysis?.history_limit ?? 0)} per stream.`;
+  const sampleReplayStatusMessage = sampleReplayError
+    ? sampleReplayError
+    : sampleVideoStatus === "playing"
+      ? "Playing recorded sample replay."
+      : sampleVideoStatus === "buffering"
+        ? "Buffering recorded sample video..."
+        : sampleVideoStatus === "ready"
+          ? "Recorded sample video loaded."
+          : sampleVideoStatus === "loading"
+            ? "Loading recorded sample video..."
+            : "Recorded sample replay is idle.";
 
   function updateCustomProductName(nextName) {
     setCustomProducts((current) =>
@@ -2194,117 +2579,108 @@ export default function App() {
           </div>
 
           <section className="viewer-card">
-            {selectedViewMode === "heatmap" ? (
-              <>
-                <div className="viewer-card-toolbar">
-                  <div>
-                    <span className="viewer-mode-label">Heatmap View</span>
-                    <p className="muted-text">Filter interaction stages directly inside the heatmap viewer.</p>
-                  </div>
-
-                  <div className="viewer-filter-control">
-                    <label className="field-label" htmlFor="heatmap-filter">
-                      Heatmap filter
-                    </label>
-                    <select
-                      className="control-select"
-                      id="heatmap-filter"
-                      title={selectedHeatmapFilterLabel}
-                      value={heatmapFilter}
-                      onChange={(event) => setHeatmapFilter(event.target.value)}
-                    >
-                      {HEATMAP_FILTER_OPTIONS.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+            <>
+            {/* HEATMAP VIEW */}
+            <div
+              style={{
+                display: selectedViewMode === "heatmap" ? "block" : "none",
+              }}
+            >
+              <div className="viewer-card-toolbar">
+                <div>
+                  <span className="viewer-mode-label">Heatmap View</span>
+                  <p className="muted-text">
+                    Filter interaction stages directly inside the heatmap viewer.
+                  </p>
                 </div>
 
-                <div className="viewer-frame viewer-frame--heatmap">
-                  <div className="heatmap-display">
-                    {isUploadStreamOptionSelected ? (
-                      <div className="viewer-empty">
-                        Upload a video and save the shelf trapezium before opening the heatmap.
-                      </div>
-                    ) : selectedStream?.is_custom && !selectedStreamHasShelfZone ? (
-                      <div className="viewer-empty">
-                        Save the shelf trapezium in live view before opening the heatmap.
-                      </div>
-                    ) : (
-                      <HeatmapGrid heatmapData={heatmapData} filterMode={heatmapFilter} />
-                    )}
-                  </div>
+                <div className="viewer-filter-control">
+                  <label className="field-label" htmlFor="heatmap-filter">
+                    Heatmap filter
+                  </label>
+
+                  <select
+                    className="control-select"
+                    id="heatmap-filter"
+                    value={heatmapFilter}
+                    onChange={(event) => setHeatmapFilter(event.target.value)}
+                  >
+                    {HEATMAP_FILTER_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
-              </>
-            ) : (
-              <>
-                <div className="viewer-frame viewer-frame--interactive" style={liveViewerAspectStyle}>
-                  {!isUploadStreamOptionSelected && selectedStream ? (
+              </div>
+
+              <div className="viewer-frame viewer-frame--heatmap">
+                <div className="heatmap-display">
+                  <HeatmapGrid
+                    heatmapData={effectiveHeatmapData}
+                    filterMode={heatmapFilter}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* LIVE VIEW */}
+            <div
+              style={{
+                display: selectedViewMode === "live" ? "block" : "none",
+              }}
+            >
+              <div
+                className="viewer-frame viewer-frame--interactive"
+                style={liveViewerAspectStyle}
+              >
+                {!isUploadStreamOptionSelected && selectedStream ? (
+                  usesRecordedSampleReplay ? (
+                    <div className="viewer-scene">
+                      <video
+                        aria-label={`${selectedStream.name} recorded replay`}
+                        className="viewer-video"
+                        loop
+                        muted
+                        autoPlay
+                        playsInline
+                        preload="auto"
+                        ref={sampleVideoRef}
+                        src={selectedStream.frontend_video_path}
+                      />
+                      {streamHasShelfZone(selectedStream) ? (
+                        <ShelfZoneEditor
+                          disabled
+                          points={selectedStream.shelf_zone}
+                          showHandles={false}
+                        />
+                      ) : null}
+                      <DetectionOverlay
+                        behaviorBoxes={currentBehaviorBoxes}
+                        frameSize={selectedStream.fixed_size}
+                        personBoxes={currentPersonBoxes}
+                        persistentPoints={currentPersistentPoints}
+                      />
+                    </div>
+                  ) : (
                     <img
                       alt={`${selectedStream.name} live stream`}
                       className="viewer-image"
-                      key={selectedStream.stream_id}
                       src={`${API_BASE_URL}/camera-streams/${selectedStream.stream_id}`}
                     />
-                  ) : (
-                    <div className="viewer-empty">
-                      Upload mode selected. Choose a video above to create your custom stream.
-                    </div>
-                  )}
-                  {selectedStream?.is_custom && !isUploadStreamOptionSelected ? (
-                    <ShelfZoneEditor
-                      disabled={isSavingShelfZone}
-                      points={shelfZoneDraft}
-                      onChange={setShelfZoneDraft}
-                    />
-                  ) : null}
-                </div>
-                <div className="viewer-footer">
-                  <span className="viewer-label">
-                    {isUploadStreamOptionSelected
-                      ? "Upload Video"
-                      : selectedStream?.name ?? "No stream selected"}
-                  </span>
-                  <p className="muted-text">
-                    {isUploadStreamOptionSelected
-                      ? "Upload a video to start the custom configuration flow."
-                      : requestError || "Video View"}
-                  </p>
-                </div>
-                {selectedStream?.is_custom && !isUploadStreamOptionSelected ? (
-                  <div className="custom-stream-panel">
-                    <p className="muted-text">
-                      Drag the four handles to match your shelf trapezium, then save it to start
-                      custom metrics, heatmaps, and product interaction history.
-                    </p>
-                    <div className="custom-stream-panel__actions">
-                      <button className="ghost-button" type="button" onClick={resetShelfZoneDraft}>
-                        Reset Trapezium
-                      </button>
-                      <button
-                        className="ghost-button"
-                        disabled={isSavingShelfZone}
-                        type="button"
-                        onClick={saveShelfZone}
-                      >
-                        {isSavingShelfZone ? "Saving..." : "Save Shelf Zone"}
-                      </button>
-                    </div>
-                    {!selectedStreamHasShelfZone ? (
-                      <p className="muted-text">
-                        This uploaded stream will stay unscored until the trapezium is saved.
-                      </p>
-                    ) : null}
-                    {shelfZoneError ? <p className="error-text">{shelfZoneError}</p> : null}
-                    {!shelfZoneError && shelfZoneStatus ? (
-                      <p className="muted-text">{shelfZoneStatus}</p>
-                    ) : null}
+                  )
+                ) : (
+                  <div className="viewer-empty">
+                    Upload mode selected.
                   </div>
-                ) : null}
-              </>
-            )}
+                )}
+              </div>
+            </div>
+          </>
+
+
+
+
           </section>
         </section>
 
@@ -2399,7 +2775,7 @@ export default function App() {
                 }
                 draftRect={draftProduct ? normalizeDraftRect(draftProduct) : null}
                 editable={productLayoutMode === "custom"}
-                eventPoints={deferredHistoricalEventPoints}
+                eventPoints={deferredBoardEventPoints}
                 onBoardPointerDown={handleCustomBoardPointerDown}
                 onBoardPointerMove={handleCustomBoardPointerMove}
                 onBoardPointerUp={handleCustomBoardPointerUp}
@@ -2673,17 +3049,17 @@ export default function App() {
                     className="viewer-frame viewer-frame--interactive upload-setup-modal__viewer-frame"
                     style={setupViewerAspectStyle}
                   >
-                    <img
-                      alt={`${setupStream.name} setup preview`}
-                      className="viewer-image"
-                      key={`${setupStream.stream_id}-${setupPreviewVersion}`}
-                      src={`${API_BASE_URL}/camera-streams/${setupStream.stream_id}?preview=${setupPreviewVersion}`}
-                    />
-                    <ShelfZoneEditor
-                      disabled={isSavingShelfZone || isUpdatingSetupPreview}
-                      points={shelfZoneDraft}
-                      onChange={setShelfZoneDraft}
-                    />
+                  <img
+                     alt={`${setupStream.name} setup preview`}
+                    className="viewer-image"
+                    key={`${setupStream.stream_id}-${setupPreviewVersion}`}
+                    src={`${API_BASE_URL}/camera-streams/${setupStream.stream_id}?preview=${setupPreviewVersion}`}
+                  />
+                  <ShelfZoneEditor
+                    disabled={isSavingShelfZone || isUpdatingSetupPreview}
+                    points={shelfZoneDraft}
+                    onChange={setShelfZoneDraft}
+                  />
                   </div>
 
                   <div className="upload-setup-modal__hint-bar">

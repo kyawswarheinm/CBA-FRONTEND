@@ -712,6 +712,13 @@ select {
   isolation: isolate;
 }
 
+.viewer-scene {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.viewer-video,
 .viewer-image,
 .viewer-empty,
 .heatmap-display {
@@ -719,10 +726,83 @@ select {
   height: 100%;
 }
 
+.viewer-video,
 .viewer-image {
   display: block;
   object-fit: cover;
   object-position: center;
+}
+
+.detection-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.detection-box {
+  position: absolute;
+  border: 2px solid currentColor;
+  border-radius: 0;
+  color: #f4efe8;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.24) inset;
+}
+
+.detection-box--person {
+  color: #ffd348;
+}
+
+.detection-box--touching {
+  color: #39d061;
+}
+
+.detection-box--holding {
+  color: #4f9cff;
+}
+
+.detection-box--product_remove {
+  color: #bf78ff;
+}
+
+.detection-box--no_interaction {
+  color: #ff5b70;
+}
+
+.detection-box__label {
+  position: absolute;
+  left: -1px;
+  top: -22px;
+  padding: 0;
+  font-size: 0.74rem;
+  font-weight: 700;
+  line-height: 1;
+  color: currentColor;
+  background: transparent;
+  white-space: nowrap;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.75);
+}
+
+.interaction-point {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  transform: translate(-50%, -50%);
+  box-shadow:
+    0 0 0 2px rgba(255, 255, 255, 0.86),
+    0 0 18px rgba(255, 255, 255, 0.15);
+}
+
+.interaction-point--touching {
+  background: #39d061;
+}
+
+.interaction-point--holding {
+  background: #4f9cff;
+}
+
+.interaction-point--product_remove {
+  background: #bf78ff;
 }
 
 .custom-stream-panel {
@@ -1120,53 +1200,51 @@ select {
 .shelf-zone-editor {
   position: absolute;
   inset: 0;
-  z-index: 2;
+  width: 100%;
+  height: 100%;
+  z-index: 4;
   pointer-events: none;
 }
 
 .shelf-zone-editor__svg {
   width: 100%;
   height: 100%;
+  display: block;
+  overflow: visible;
 }
 
 .shelf-zone-editor__fill {
-  fill: rgba(247, 162, 108, 0.15);
+  fill: rgba(82, 167, 255, 0.14);
 }
 
 .shelf-zone-editor__outline {
   fill: none;
-  stroke: rgba(247, 162, 108, 0.9);
-  stroke-width: 0.45;
+  stroke: #52a7ff;
+  stroke-width: 2.2;
   stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+  filter: drop-shadow(0 0 8px rgba(82, 167, 255, 0.28));
 }
 
 .shelf-zone-editor__handle {
   position: absolute;
-  z-index: 3;
-  width: 34px;
-  height: 34px;
-  border: 0;
+  width: 28px;
+  height: 28px;
   border-radius: 999px;
-  transform: translate(-50%, -50%);
+  border: 2px solid #ffffff;
   background: #f7a26c;
-  color: #11151c;
-  font-weight: 800;
-  box-shadow: 0 0 0 4px rgba(247, 162, 108, 0.18);
-  cursor: grab;
+  transform: translate(-50%, -50%);
+  z-index: 7;
   pointer-events: auto;
-}
-
-.shelf-zone-editor__handle:active {
-  cursor: grabbing;
+  cursor: grab;
 }
 
 .shelf-zone-editor__handle span {
-  pointer-events: none;
+  display: none;
 }
 
 .shelf-zone-editor.is-disabled .shelf-zone-editor__handle {
-  opacity: 0.65;
-  cursor: wait;
+  display: none;
 }
 
 .viewer-empty {
