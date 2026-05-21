@@ -61,7 +61,7 @@ const ABOUT_INTRO_PARAGRAPHS = [
   {
     tone: "insight",
     text:
-      "Unless traditional POS systems, its purpose is to reveal pre-purchase customer intent and connect those behavior signals with actualsales outcomes. This helps retail teams act on revenue risks before they appear in transactional reports.",
+      "Unlike traditional POS systems, its purpose is to reveal pre-purchase customer intent and connect those behavior signals with actualsales outcomes. This helps retail teams act on revenue risks before they appear in transactional reports.",
   },
   {
     tone: "accent",
@@ -147,7 +147,7 @@ const ABOUT_SECTIONS = [
         {
           tone: "default",
           text:
-            "The platform now operates through two coordinated data paths.",
+            "The platform now operates through two coordinated data paths (RECORDED SAMPLE REPLAY FLOW and LIVE UPLOAD + ANALYSIS FLOW).",
         },
         {
           tone: "insight",
@@ -244,15 +244,15 @@ const ABOUT_SECTIONS = [
       },
       {
         tone: "default",
-        title: "Potential usage:",
-        text:
-          "the system is best suited for operational decision support, including attention hotspot detection, low-conversion shelf analysis, product interaction ranking, placement investigation, replenishment prioritization, and demand monitoring. It is less suitable as a legal/compliance tool or as a perfect replacement for manual research annotation.",
-      },
-      {
-        tone: "default",
         title: "Bottleneck:",
         text:
           "current bottlenecks mainly involve video processing throughput, replay generation time, upload-to-analysis latency, and maintaining stable interaction rendering while preserving accurate event chains. Larger deployments would require stronger batching, queueing, caching, and infrastructure optimization.",
+      },
+      {
+        tone: "default",
+        title: "Potential usage:",
+        text:
+          "the system is best suited for operational decision support, including attention hotspot detection, low-conversion shelf analysis, product interaction ranking, placement investigation, replenishment prioritization, and demand monitoring. It is less suitable as a legal/compliance tool or as a perfect replacement for manual research annotation.",
       },
       {
         tone: "default",
