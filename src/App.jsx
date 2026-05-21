@@ -252,7 +252,7 @@ const ABOUT_SECTIONS = [
         tone: "default",
         title: "Potential usage:",
         text:
-          "the system is best suited for operational decision support, including attention hotspot detection, low-conversion shelf analysis, product interaction ranking, placement investigation, replenishment prioritization, and demand monitoring. It is less suitable as a legal/compliance tool or as a perfect replacement for manual research annotation.",
+          "the system was designed for operational retail decision support, with several areas still open for further exploration, such as identifying attention hotspots, low-conversion areas, product interaction trends, placement issues, replenishment needs, and demand patterns.",
       },
       {
         tone: "default",
