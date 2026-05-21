@@ -4,15 +4,24 @@ All rights reserved.
 This repository and its contents are proprietary.
 
 No permission is granted to use, copy, modify, merge, publish, distribute,
-sublicense, sell, or create derivative works from this software or its
-associated assets without prior written permission from the copyright holder(s).
+sublicense, sell, train on, reverse engineer, or create derivative works from
+this software, model files, datasets, videos, annotations, outputs, or associated
+assets without prior written permission from the copyright holder(s).
 
-This software is provided for private evaluation and authorized project use only.
+This repository may include project assets such as sample videos, images,
+annotations, model outputs, trained model files, and analysis data. These
+materials may contain identifiable individuals and are provided only for private
+evaluation and authorized project use.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM,
-OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+All trained models, model weights, detection outputs, analytics logic, datasets,
+annotations, video assets, and associated documentation are proprietary
+intellectual property of the Customer Behaviour Analysis Project Authors unless
+otherwise stated.
+
+THE SOFTWARE AND ASSOCIATED ASSETS ARE PROVIDED "AS IS", WITHOUT WARRANTY OF
+ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT. IN NO
+EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES,
+OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE,
+ARISING FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE, ASSETS, OR USE OF THE
+REPOSITORY.
