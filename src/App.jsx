@@ -1800,7 +1800,7 @@ function AboutContributorsVisual() {
                 <tr>
                   <td>Kyaw Swar Hein</td>
                   <td>Developer</td>
-                  <td>kyawswarhein3092004@gmail.com</td>
+                  <td>heinm.dev@gmail.com</td>
                 </tr>
                 <tr>
                   <td>Banyar Htet Naung</td>
