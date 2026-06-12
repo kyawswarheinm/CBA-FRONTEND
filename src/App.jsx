@@ -182,9 +182,19 @@ const ABOUT_SECTIONS = [
             "The recorded footage was manually labeled frame by frame in CVAT for both the training and validation sets. The label classes were 'No Interaction,' 'Touching Shelf,' 'Holding Product,' and 'Item Removed.' Ten videos were used for development, while one full video was held out for final testing. To reduce leakage from highly correlated adjacent frames, the split was performed at the video level rather than through random image sampling.",
         },
         {
+          tone: "default",
+          text:
+            "This produced a dataset with 7 training videos containing 9,554 labeled images, 3 validation videos containing 3,024 images, and 1 fully unseen test video. The total documented frame count is 12,578. That is enough to demonstrate the feasibility of the system and compare class behavior visually, but it is still a relatively small dataset for building a highly reliable production-grade retail model across many shelves, stores, lighting conditions, and customer behaviors.",
+        },
+        {
           tone: "accent",
           text:
-            "The final training set contains 7 training videos with 9,554 images, 3 validation videos with 3,024 images, and 1 unseen test video. Training was performed with the Ultralytics YOLO pipeline for 50 epochs, and the strongest validation checkpoint appeared around epoch 25 with precision 0.7269, recall 0.5895, mAP@50 of 0.6091, and mAP@50-95 of 0.2525. These figures support a functional retail analysis pipeline, while still leaving clear room for improvement in robustness and generalization.",
+            "Training was performed through the Ultralytics YOLO pipeline for 50 epochs, with the strongest validation checkpoint appearing around epoch 25. The documented metrics at that stage were precision 0.7269, recall 0.5895, mAP@50 of 0.6091, and mAP@50-95 of 0.2525. In practical terms, these numbers indicate a workable prototype that can surface meaningful retail interaction patterns, while still showing clear room for stronger generalization, more stable recall, and better robustness under harder real-world conditions.",
+        },
+        {
+          tone: "insight",
+          text:
+            "The training visuals shown in this section are not decorative extras. The labels chart helps verify dataset balance and annotation density, the training-results plot shows how learning evolved across epochs, and the confusion matrices reveal where classes still overlap or get confused. Together they explain why the system is already useful for directional analysis, but should still be treated as an integrated prototype rather than a fully mature production model.",
         },
       ],
     },
@@ -282,6 +292,8 @@ const ABOUT_COMPARISON_ROWS = [
   { traditional: "Sales only", system: "Behavior + Sales" },
 ];
 const ABOUT_TRAINING_METRICS = [
+  { metric: "Framework", value: "Ultralytics YOLO" },
+  { metric: "Annotation Tool", value: "CVAT" },
   { metric: "Source Videos", value: "11" },
   { metric: "Training Videos", value: "7" },
   { metric: "Validation Videos", value: "3" },
@@ -291,6 +303,11 @@ const ABOUT_TRAINING_METRICS = [
   { metric: "Total Images", value: "12,578" },
   { metric: "Classes", value: "4" },
   { metric: "Epochs", value: "50" },
+  { metric: "Best Checkpoint", value: "Around epoch 25" },
+  { metric: "Precision", value: "0.7269" },
+  { metric: "Recall", value: "0.5895" },
+  { metric: "mAP@50", value: "0.6091" },
+  { metric: "mAP@50-95", value: "0.2525" },
 ];
 const ABOUT_FUNNEL_STEPS = [
   { label: "Touches", value: "1,000", width: 100 },

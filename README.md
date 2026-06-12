@@ -101,6 +101,79 @@ Reported project metrics from the documented training run:
 
 This means the current model should be understood as a strong academic or prototype-stage system rather than a fully production-hardened deployment model.
 
+## Training
+
+The exact internal training scripts, model weights, and backend-side training environment are private and are not distributed in this public frontend repository. This section documents the real training workflow and results used by the project.
+
+### Training Workflow
+
+- Define the task as a four-class retail interaction problem: `No Interaction`, `Touching Shelf`, `Holding Product`, and `Item Removed`.
+- Record 11 custom shelf-facing videos in real retail-style conditions using phone cameras and natural volunteer interactions.
+- Annotate the footage frame by frame in CVAT to create behavior labels for training and validation.
+- Split data at the full-video level to reduce leakage from highly similar neighboring frames.
+- Train the detection model through the Ultralytics YOLO pipeline for 50 epochs.
+- Review outcomes with label distribution charts, training curves, and confusion matrices before choosing the best checkpoint for the prototype system.
+
+### Public Training Configuration Summary
+
+```yaml
+model:
+  framework: Ultralytics YOLO
+  task: retail shelf interaction detection
+  classes:
+    - No Interaction
+    - Touching Shelf
+    - Holding Product
+    - Item Removed
+
+dataset:
+  source_videos: 11
+  training_videos: 7
+  validation_videos: 3
+  test_videos: 1
+  training_images: 9554
+  validation_images: 3024
+  total_images: 12578
+  split_strategy: video-level
+  annotation_tool: CVAT
+
+training:
+  epochs: 50
+  best_validation_checkpoint: around_epoch_25
+```
+
+### Training Review Assets
+
+The public repository includes the following training and evaluation visuals:
+
+- `public/images/labels.jpg`
+- `public/images/results.png`
+- `public/images/confusion_matrix.png`
+- `public/images/confusion_matrix_normalized.png`
+- `public/images/BoxP_curve.png`
+- `public/images/BoxR_curve.png`
+- `public/images/BoxF1_curve.png`
+- `public/images/BoxPR_curve.png`
+
+## Results
+
+### Performance Metrics
+
+| Metric | Score |
+|--------|-------|
+| Precision | 0.7269 |
+| Recall | 0.5895 |
+| mAP@50 | 0.6091 |
+| mAP@50-95 | 0.2525 |
+
+### Training History
+
+![Training History](./public/images/results.png)
+
+### Confusion Matrix
+
+![Confusion Matrix](./public/images/confusion_matrix.png)
+
 ## If You Do Not Have Backend Access
 
 You can still use this public frontend without the private backend.
@@ -158,9 +231,7 @@ VITE_API_BASE_URL=http://127.0.0.1:8000
 
 If no authorized backend is available, the bundled sample assets still allow the UI to be explored in demo mode.
 
-## Deployment Notes
+## Developer Notes
 
-- Deploy this frontend from source.
-- Do not commit `node_modules/`, `dist/`, or local `.env` files.
-- Production live features depend on a private backend endpoint exposed through `VITE_API_BASE_URL`.
+- Production live features depend on a private backend endpoint exposed through `https://████████████████.████████.███`.
 - The backend remains private and is not distributed with this repository.
